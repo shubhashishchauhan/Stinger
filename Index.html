@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stinger</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#26314A;
+    --ink-soft:#5B6478;
+    --gold:#B9903F;
+    --gold-soft:#F6EFDD;
+    --bg:#F5F3EE;
+    --panel:#FFFFFF;
+    --line:#E5E1D6;
+    --good:#3E7A57;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:40px 20px 80px; background:var(--bg); color:var(--ink);
+    font-family:'Inter', sans-serif;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+
+  header{text-align:center; margin-bottom:36px;}
+  header .badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:52px; height:52px; border-radius:50%; border:2px solid var(--gold);
+    font-size:24px; margin-bottom:12px; transform:rotate(-6deg);
+  }
+  h1{font-family:'Source Serif 4', serif; font-size:32px; margin:0 0 6px; font-weight:700;}
+  header p{margin:0; color:var(--ink-soft); font-size:15px;}
+
+  .uploads{display:flex; gap:20px; flex-wrap:wrap; margin-bottom:28px;}
+  .card{
+    flex:1; min-width:280px; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:24px; text-align:center;
+  }
+  .card .icon{font-size:26px; margin-bottom:8px;}
+  .card h3{margin:0 0 4px; font-size:15px; font-weight:600;}
+  .card p.hint{margin:0 0 16px; font-size:12.5px; color:var(--ink-soft);}
+  .filebtn{
+    display:inline-block; padding:10px 20px; border-radius:8px; border:1px dashed var(--gold);
+    background:var(--gold-soft); color:var(--ink); font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .filebtn:hover{opacity:.85;}
+  input[type=file]{display:none;}
+  .filename{margin-top:10px; font-size:12.5px; color:var(--good); font-weight:600; word-break:break-all;}
+
+  .positionSection{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:28px; margin-bottom:24px; display:none;
+  }
+  .positionSection.show{display:block;}
+  .positionSection h3{margin:0 0 4px; font-size:16px;}
+  .positionSection p.hint{margin:0 0 18px; font-size:13px; color:var(--ink-soft);}
+
+  .stageWrap{display:flex; justify-content:center;}
+  .stage{
+    position:relative; border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,.1);
+    background:#fff; max-width:100%;
+  }
+  .stage canvas{display:block; max-width:100%; height:auto;}
+  .sigHandle{
+    position:absolute; cursor:grab; touch-action:none; user-select:none;
+    border:1px dashed var(--gold); padding:2px;
+  }
+  .sigHandle:active{cursor:grabbing;}
+  .sigHandle img{display:block; width:100%; height:auto; pointer-events:none;}
+
+  .controls{display:flex; align-items:center; justify-content:center; gap:18px; margin-top:18px; flex-wrap:wrap;}
+  .controls label{font-size:13px; color:var(--ink-soft); font-weight:600;}
+  .controls input[type=range]{accent-color:var(--gold); width:160px;}
+  .controls select{
+    padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-size:13px; font-family:'Inter',sans-serif;
+  }
+
+  .downloadArea{text-align:center;}
+  .primaryBtn{
+    background:var(--ink); color:#fff; border:none; border-radius:10px; padding:14px 32px;
+    font-size:15px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .primaryBtn:hover{opacity:.9;}
+  .primaryBtn:disabled{opacity:.4; cursor:not-allowed;}
+  .status{margin-top:12px; font-size:13px; color:var(--ink-soft);}
+  progress{width:280px; height:8px; margin-top:12px; accent-color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="badge">🐝</div>
+    <h1>Stinger</h1>
+    <p>Upload your letters and your signature — get every one back, signed in exactly the same spot.</p>
+  </header>
+
+  <div class="uploads">
+    <div class="card">
+      <div class="icon">✍️</div>
+      <h3>Signature</h3>
+      <p class="hint">A PNG with a transparent background works best</p>
+      <label class="filebtn" for="sigInput">Choose file</label>
+      <input type="file" id="sigInput" accept="image/png,image/jpeg">
+      <div class="filename" id="sigName"></div>
+    </div>
+
+    <div class="card">
+      <div class="icon">📑</div>
+      <h3>Letters to sign</h3>
+      <p class="hint">Select all your PDF letters at once</p>
+      <label class="filebtn" for="pdfInput">Choose files</label>
+      <input type="file" id="pdfInput" accept=".pdf" multiple>
+      <div class="filename" id="pdfNames"></div>
+    </div>
+  </div>
+
+  <div class="positionSection" id="positionSection">
+    <h3>Position the signature</h3>
+    <p class="hint">Drag it into place on this preview (your first uploaded letter). The same spot will be used on every letter.</p>
+
+    <div class="stageWrap">
+      <div class="stage" id="stage">
+        <canvas id="pageCanvas"></canvas>
+        <div class="sigHandle" id="sigHandle" style="display:none;">
+          <img id="sigHandleImg" src="" alt="signature">
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <label>Size
+        <input type="range" id="sizeSlider" min="60" max="400" value="150">
+      </label>
+      <label>Sign which page?
+        <select id="pageSelect">
+          <option value="last">Last page</option>
+          <option value="first">First page</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="downloadArea">
+    <button class="primaryBtn" id="signAllBtn" disabled>Sign all &amp; download ZIP</button>
+    <div class="status" id="genStatus"></div>
+    <progress id="genProgress" value="0" max="1" style="display:none;"></progress>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const sigInput = document.getElementById('sigInput');
+  const pdfInput = document.getElementById('pdfInput');
+  const sigName = document.getElementById('sigName');
+  const pdfNames = document.getElementById('pdfNames');
+  const positionSection = document.getElementById('positionSection');
+  const stage = document.getElementById('stage');
+  const pageCanvas = document.getElementById('pageCanvas');
+  const sigHandle = document.getElementById('sigHandle');
+  const sigHandleImg = document.getElementById('sigHandleImg');
+  const sizeSlider = document.getElementById('sizeSlider');
+  const pageSelect = document.getElementById('pageSelect');
+  const signAllBtn = document.getElementById('signAllBtn');
+  const genStatus = document.getElementById('genStatus');
+  const genProgress = document.getElementById('genProgress');
+
+  let signatureBytes = null;
+  let signatureType = null;
+  let signatureAspect = 1;
+  let pdfFiles = [];
+
+  function tryReveal() {
+    if (signatureBytes && pdfFiles.length > 0) {
+      signAllBtn.disabled = false;
+      positionSection.classList.add('show');
+      renderPreview();
+    }
+  }
+
+  sigInput.addEventListener('change', () => {
+    const file = sigInput.files[0];
+    if (!file) return;
+    sigName.textContent = file.name;
+    signatureType = file.type.includes('png') ? 'png' : 'jpg';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      signatureBytes = new Uint8Array(e.target.result);
+
+      const blobUrl = URL.createObjectURL(new Blob([signatureBytes]));
+      const img = new Image();
+      img.onload = () => {
+        signatureAspect = img.naturalHeight / img.naturalWidth;
+        sigHandleImg.src = blobUrl;
+        tryReveal();
+      };
+      img.src = blobUrl;
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  pdfInput.addEventListener('change', () => {
+    pdfFiles = Array.from(pdfInput.files);
+    pdfNames.textContent = pdfFiles.length + ' file(s) selected';
+    tryReveal();
+  });
+
+  async function renderPreview() {
+    const file = pdfFiles[0];
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    const pageNum = pageSelect.value === 'last' ? pdf.numPages : 1;
+    const page = await pdf.getPage(pageNum);
+
+    const viewport = page.getViewport({ scale: 1.5 });
+    pageCanvas.width = viewport.width;
+    pageCanvas.height = viewport.height;
+    stage.style.width = viewport.width + 'px';
+    stage.style.height = viewport.height + 'px';
+
+    const ctx = pageCanvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    if (sigHandle.style.display === 'none') {
+      const w = parseInt(sizeSlider.value, 10);
+      sigHandle.style.width = w + 'px';
+      sigHandle.style.left = (viewport.width - w - 40) + 'px';
+      sigHandle.style.top = (viewport.height - w * signatureAspect - 80) + 'px';
+      sigHandle.style.display = 'block';
+    }
+  }
+
+  pageSelect.addEventListener('change', renderPreview);
+
+  sizeSlider.addEventListener('input', () => {
+    const w = parseInt(sizeSlider.value, 10);
+    sigHandle.style.width = w + 'px';
+  });
+
+  let dragging = false, dragOffsetX = 0, dragOffsetY = 0;
+
+  function startDrag(clientX, clientY) {
+    const rect = sigHandle.getBoundingClientRect();
+    dragOffsetX = clientX - rect.left;
+    dragOffsetY = clientY - rect.top;
+    dragging = true;
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!dragging) return;
+    const stageRect = stage.getBoundingClientRect();
+    let left = clientX - stageRect.left - dragOffsetX;
+    let top = clientY - stageRect.top - dragOffsetY;
+    left = Math.max(0, Math.min(stageRect.width - sigHandle.offsetWidth, left));
+    top = Math.max(0, Math.min(stageRect.height - sigHandle.offsetHeight, top));
+    sigHandle.style.left = left + 'px';
+    sigHandle.style.top = top + 'px';
+  }
+
+  sigHandle.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+  window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+  window.addEventListener('mouseup', () => dragging = false);
+
+  sigHandle.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY);
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  });
+  window.addEventListener('touchend', () => dragging = false);
+
+  signAllBtn.addEventListener('click', async () => {
+    signAllBtn.disabled = true;
+    genProgress.style.display = 'inline-block';
+    genProgress.max = pdfFiles.length;
+    genProgress.value = 0;
+
+    const stageW = pageCanvas.width;
+    const stageH = pageCanvas.height;
+    const xFrac = sigHandle.offsetLeft / stageW;
+    const yFrac = sigHandle.offsetTop / stageH;
+    const wFrac = sigHandle.offsetWidth / stageW;
+
+    const outputZip = new JSZip();
+
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const file = pdfFiles[i];
+      genStatus.textContent = 'Signing ' + (i + 1) + ' of ' + pdfFiles.length + '...';
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+
+      const pages = pdfDoc.getPages();
+      const targetPage = pageSelect.value === 'last' ? pages[pages.length - 1] : pages[0];
+
+      const embeddedImg = signatureType === 'png'
+        ? await pdfDoc.embedPng(signatureBytes)
+        : await pdfDoc.embedJpg(signatureBytes);
+
+      const { width: pageWidth, height: pageHeight } = targetPage.getSize();
+
+      const imgWidth = wFrac * pageWidth;
+      const imgHeight = imgWidth * signatureAspect;
+      const x = xFrac * pageWidth;
+      const y = pageHeight - (yFrac * pageHeight) - imgHeight;
+
+      targetPage.drawImage(embeddedImg, { x, y, width: imgWidth, height: imgHeight });
+
+      const signedBytes = await pdfDoc.save();
+
+      const baseName = file.name.replace(/\.pdf$/i, '');
+      outputZip.file(baseName + '.pdf', signedBytes);
+
+      genProgress.value = i + 1;
+    }
+
+    genStatus.textContent = 'Zipping...';
+    const zipBlob = await outputZip.generateAsync({ type: 'blob' });
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = 'stinger-signed-letters.zip';
+    a.click();
+
+    genStatus.textContent = 'Done — ' + pdfFiles.length + ' letter(s) signed.';
+    signAllBtn.disabled = false;
+  });
+</script>
+</body>
+</html>
